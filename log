@@ -1,4 +1,0 @@
-abelian.c: In function ‘epi_mono’:
-abelian.c:307:23: warning: assignment discards ‘const’ qualifier from pointer target type [enabled by default]
-   from_X_2.entries[0] = f;
-                       ^

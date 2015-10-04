@@ -53,8 +53,8 @@ $(OBJDIR):
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(OBJDIR)/$(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $(OBJDIR)/$@ $<
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	$(RM) -r $(OBJDIR)

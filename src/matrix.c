@@ -8,23 +8,20 @@ Matrix* matrix_init(int height, int width) {
   }
   mat->height = height;
   mat->width = width;
-  mpq_t *entries = (mpq_t*) malloc(sizeof(mpq_t) * height * width);
-  mat->entries = entries;
-  if (entries == NULL) {
+  mat->entries = (mpq_t*) malloc(sizeof(mpq_t) * height * width);
+  if (mat->entries == NULL) {
+    free(mat);
     return NULL;
   }
   for (int i = 0; i < height * width; i++) {
-    mpq_init(*entries);
-    entries++;
+    mpq_init(mat->entries[i]);
   }
   return mat;
 }
 
 void matrix_clear(Matrix *mat) {
-  mpq_t *entry = mat->entries;
   for (int i = 0; i < mat->height * mat->width; i++) {
-    mpq_clear(*entry);
-    entry++;
+    mpq_clear(mat->entries[i]);
   }
   free(mat->entries);
   free(mat);

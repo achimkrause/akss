@@ -14,10 +14,10 @@
 } AbelianGroup;
 
 ///////////////////////homological algebra////////////////////////////////////////////////////////////
-void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
+void kernel(int p, const Matrix *f, AbelianGroup x, AbelianGroup y,
     MatrixArray to_X, MatrixArray from_X, AbelianGroup *k,
     MatrixArray *to_K, MatrixArray *from_K);
-void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
+void cokernel(int p, const Matrix *f, AbelianGroup y, MatrixArray to_Y,
     MatrixArray from_Y, AbelianGroup *c, MatrixArray *to_C,
     MatrixArray *from_C);
 void epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
@@ -28,9 +28,6 @@ void compose_diag_p_power(int p, Matrix *f, int *exponents,
     Matrix **res);
 void lift_diag_p_power(int p, Matrix *f, int *exponents,
     Matrix **res);
-
-///////////////////////matrix helper functions, maybe factor into matrix.h////////////////////////
-void compose(Matrix *g, Matrix *f, Matrix **gf);
 
 ///////////////////////lifting, not used as of now/////////////////////////////////////////////
 int lift_diag(Matrix *f, Matrix *d, Matrix **res);

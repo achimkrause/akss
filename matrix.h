@@ -63,5 +63,7 @@ void set_diag_p_powers(int p, int i0_target, int j0_target, int range,
     int *source, Matrix *target);
 
 ////////////////////////////////////////////////////////////////////////////////////
+void compose(const Matrix *g, const Matrix *f, Matrix **gf);
+
 
 #endif

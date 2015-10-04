@@ -297,3 +297,36 @@ void set_diag_p_powers(int p, int i0_target, int j0_target, int range,
   }
 }
 ////////////////////////////////////////////////////////////////////////////////////
+void compose(const Matrix *g, const Matrix *f, Matrix **gf) {
+  *gf = matrix_init(g->height, f->width);
+  Matrix *result = *gf;
+  mpq_t *entry_gf = result->entries;
+  mpq_t prod;
+  mpq_init(prod);
+
+  mpq_t *entry_g = g->entries;
+  mpq_t *entry_f = f->entries;
+
+  for (int i = 0; i < result->height; i++) {
+    for (int j = 0; j < result->width; j++) {
+
+      for (int k = 0; k < f->height; k++) {
+
+        //fprintf(stderr, "i=%u, j=%u, k=%u\n",i,j,k);
+
+        mpq_mul(prod, *entry_f, *entry_g);
+        mpq_add(*entry_gf, *entry_gf, prod);
+        entry_g++;
+        entry_f += f->width;
+      }
+      entry_gf++;
+      entry_g = entry_g - (g->width);  //set g back to beginning of row.
+      entry_f = entry_f - (f->height) * (f->width) + 1;  //set f back to beginning of col, add 1.
+    }
+    //here, f is 1 past the first row, set back.
+    entry_f = entry_f - (f->width);
+    //g needs to be set to the next row.
+    entry_g = entry_g + (g->width);
+  }
+  mpq_clear(prod);
+}

@@ -13,7 +13,7 @@
  Similarly, if A is torsion-free, we need to compute just the kernel of A + rB -> gB, which takes only one application of smith as well.
  */
 
-void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray to_X,
+void kernel(int p, const Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray to_X,
     MatrixArray from_X, AbelianGroup *k, MatrixArray *to_K, MatrixArray *from_K) {
 
   //first, compute for f*rel_x a lift l along rel_y. Then a map R_x -> R_y + X is given by (-l, rel_x)^t,
@@ -186,7 +186,7 @@ void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray to_X,
   matrix_arr_clear(to_Ry_X);
 }
 
-void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
+void cokernel(int p, const Matrix *f, AbelianGroup y, MatrixArray to_Y,
     MatrixArray from_Y, AbelianGroup *c, MatrixArray *to_C, MatrixArray *from_C) {
 
   Matrix *f_rel_y = matrix_init(f->height, f->width + y.tor_rank);
@@ -414,39 +414,6 @@ void lift_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
   //mpq_clear(zero);//DEBUG ONLY
 }
 
-void compose(Matrix *g, Matrix *f, Matrix **gf) {
-  *gf = matrix_init(g->height, f->width);
-  Matrix *result = *gf;
-  mpq_t *entry_gf = result->entries;
-  mpq_t prod;
-  mpq_init(prod);
-
-  mpq_t *entry_g = g->entries;
-  mpq_t *entry_f = f->entries;
-
-  for (int i = 0; i < result->height; i++) {
-    for (int j = 0; j < result->width; j++) {
-
-      for (int k = 0; k < f->height; k++) {
-
-        //fprintf(stderr, "i=%u, j=%u, k=%u\n",i,j,k);
-
-        mpq_mul(prod, *entry_f, *entry_g);
-        mpq_add(*entry_gf, *entry_gf, prod);
-        entry_g++;
-        entry_f += f->width;
-      }
-      entry_gf++;
-      entry_g = entry_g - (g->width);  //set g back to beginning of row.
-      entry_f = entry_f - (f->height) * (f->width) + 1;  //set f back to beginning of col, add 1.
-    }
-    //here, f is 1 past the first row, set back.
-    entry_f = entry_f - (f->width);
-    //g needs to be set to the next row.
-    entry_g = entry_g + (g->width);
-  }
-  mpq_clear(prod);
-}
 
 int lift_diag(Matrix *f, Matrix *d, Matrix **res) {
   Matrix *lift = matrix_init(d->width, f->width);

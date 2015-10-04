@@ -40,6 +40,8 @@ int main() {
 
   abelian_clear(&x);
   abelian_clear(&y);
+
+  return 0;
 }
 
 /*

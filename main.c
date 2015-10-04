@@ -37,6 +37,9 @@ int main() {
   fill_matrix(val, f);
 
   test_epi_mono(2, f, x, y);
+
+  abelian_clear(&x);
+  abelian_clear(&y);
 }
 
 /*

@@ -23,10 +23,15 @@ typedef struct {
 Matrix* matrix_init(int height, int width);
 void matrix_clear(Matrix *mat);
 
+// Initializes a new matrix and copies the entries from mat over.
+// Ownership: Caller owns the returned pointer.
+Matrix* matrix_copy(const Matrix *mat);
+
 ////////matrix_arr//////////////////////////////////////////////////////
 
-void matrix_arr_clear(MatrixArray arr);
 void matrix_arr_init(MatrixArray *arr, int length);
+void matrix_arr_clear(MatrixArray arr);
+
 
 ////////elementary manipulations//////////////////////////////////////////////////////////
 
@@ -50,10 +55,10 @@ void mul_base(MatrixArray to_X, MatrixArray from_X, int i,
     mpq_t lam);
 
 ///////////matrix construction functions////////////////////////////////////////////////////////////////////
-
-void set_unit(int i0, int j0, int i_range, int j_range, Matrix *mat);
+void set_unit(Matrix *mat);
+void set_unit_range(int i0, int j0, int i_range, int j_range, Matrix *mat);
 void set_submatrix(int i0_source, int j0_source, int i0_target, int j0_target,
-    int i_range, int j_range, Matrix *source, Matrix *target);
+    int i_range, int j_range, const Matrix *source, Matrix *target);
 void set_diag_p_powers(int p, int i0_target, int j0_target, int range,
     int *source, Matrix *target);
 

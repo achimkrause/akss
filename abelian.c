@@ -13,9 +13,8 @@
  Similarly, if A is torsion-free, we need to compute just the kernel of A + rB -> gB, which takes only one application of smith as well.
  */
 
-void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
-    MatrixArray to_X, MatrixArray from_X, AbelianGroup *k,
-    MatrixArray *to_K, MatrixArray *from_K) {
+void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray to_X,
+    MatrixArray from_X, AbelianGroup *k, MatrixArray *to_K, MatrixArray *from_K) {
 
   //first, compute for f*rel_x a lift l along rel_y. Then a map R_x -> R_y + X is given by (-l, rel_x)^t,
   //while a map R_y +X -> Y is given by (r_Y,f).
@@ -172,8 +171,10 @@ void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
   abelian_init(&free_K, 0, rel_free->height - n);
 
   cokernel(p, rel_K, free_K, to_free_K, from_free_K, k, to_K, from_K);
+  abelian_clear(&free_K);
 
   matrix_clear(rel_free);
+  matrix_clear(rel_K);
   matrix_clear(f_free);
   mpq_clear(lam_col);
   mpq_clear(lam_row);
@@ -186,8 +187,7 @@ void kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
 }
 
 void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
-    MatrixArray from_Y, AbelianGroup *c, MatrixArray *to_C,
-    MatrixArray *from_C) {
+    MatrixArray from_Y, AbelianGroup *c, MatrixArray *to_C, MatrixArray *from_C) {
 
   Matrix *f_rel_y = matrix_init(f->height, f->width + y.tor_rank);
 
@@ -208,8 +208,8 @@ void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
   mpq_t *entry_diag = f_rel_y->entries;
   int n = 0;
 
-  while (mpq_equal(*entry_diag, one) && n < f_rel_y->height
-      && n < f_rel_y->width) {
+  while (n < f_rel_y->height && n < f_rel_y->width
+      && mpq_equal(*entry_diag, one)) {
     n++;
     entry_diag = entry_diag + f_rel_y->width + 1;
   }
@@ -224,8 +224,8 @@ void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
     mpq_set_ui(zero, 0, 1);
 
     int tor_rank_c = 0;
-    while (!mpq_equal(*entry_diag, zero) && tor_rank_c < f_rel_y->height - n
-        && tor_rank_c < f_rel_y->width - n) {
+    while (tor_rank_c < f_rel_y->height - n && tor_rank_c < f_rel_y->width - n
+        && !mpq_equal(*entry_diag, zero)) {
       tor_rank_c++;
       entry_diag = entry_diag + f_rel_y->width + 1;
     }
@@ -247,9 +247,7 @@ void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
   }
 
   if (to_C != NULL) {
-
-    to_C->length = to_Y.length;
-    to_C->entries = malloc(sizeof(Matrix*) * to_Y.length);
+    matrix_arr_init(to_C, to_Y.length);
 
     Matrix **entry_to_C = to_C->entries;
     Matrix **entry_to_Y = to_Y.entries;
@@ -264,8 +262,7 @@ void cokernel(int p, Matrix *f, AbelianGroup y, MatrixArray to_Y,
   }
 
   if (from_C != NULL) {
-    from_C->length = from_Y.length;
-    from_C->entries = malloc(sizeof(Matrix*) * from_Y.length);
+    matrix_arr_init(from_C, from_Y.length);
 
     Matrix **entry_from_C = from_C->entries;
     Matrix **entry_from_Y = from_Y.entries;
@@ -290,8 +287,8 @@ void epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
 
   MatrixArray from_X;
   matrix_arr_init(&from_X, 1);
-  *(from_X.entries) = matrix_init(f->width, f->width);
-  set_unit(0, 0, f->width, f->width, *(from_X.entries));
+  from_X.entries[0] = matrix_init(f->width, f->width);
+  set_unit(from_X.entries[0]);
 
   MatrixArray to_X;
   matrix_arr_init(&to_X, 0);
@@ -302,31 +299,30 @@ void epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
 
   MatrixArray to_X_2;
   matrix_arr_init(&to_X_2, 1);
-  *(to_X_2.entries) = matrix_init(f->width, f->width);
-  set_unit(0, 0, f->width, f->width, *(to_X_2.entries));
+  to_X_2.entries[0] = matrix_init(f->width, f->width);
+  set_unit(to_X_2.entries[0]);
 
   MatrixArray from_X_2;
   matrix_arr_init(&from_X_2, 1);
-  *(from_X_2.entries) = f;
+  from_X_2.entries[0] = f;
 
   MatrixArray to_C;
   MatrixArray from_C;
-  cokernel(p, *(from_K.entries), x, to_X_2, from_X_2, img, &to_C, &from_C);
+  cokernel(p, from_K.entries[0], x, to_X_2, from_X_2, img, &to_C, &from_C);
 
-  *proj = *(to_C.entries);
-  *inc = *(from_C.entries);
+  *proj = matrix_copy(to_C.entries[0]);
+  *inc = matrix_copy(from_C.entries[0]);
 
   matrix_arr_clear(to_X);
   matrix_arr_clear(to_X_2);
   matrix_arr_clear(from_X);
   matrix_arr_clear(from_X_2);
-  free(from_K.entries);
-  free(to_C.entries);
-  free(from_C.entries);
+  matrix_arr_clear(from_K);
+  matrix_arr_clear(to_C);
+  matrix_arr_clear(from_C);
 }
 
-void compose_diag_p_power(int p, Matrix *f, int *exponents,
-    Matrix **res) {
+void compose_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
   int m = 0;
   int *exps = exponents;
   while (*exps != 0 && m < f->width) {
@@ -357,8 +353,7 @@ void compose_diag_p_power(int p, Matrix *f, int *exponents,
   mpq_clear(power);
 
 }
-void lift_diag_p_power(int p, Matrix *f, int *exponents,
-    Matrix **res) {
+void lift_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
   //*exponents is supposed to be the normalized orders of a Z_(p) module, i.e.:
   // -no p^0 appear
   // -0 codifies actual zeroes. Those are supposed to be grouped in the end
@@ -495,8 +490,8 @@ void abelian_init(AbelianGroup *x, int tor_rank, int free_rank) {
   x->orders = malloc(sizeof(int) * tor_rank);
 }
 
-void abelian_clear(AbelianGroup x) {
-  free(x.orders);
+void abelian_clear(AbelianGroup *x) {
+  free(x->orders);
 }
 /*
  int lift(int p, Matrix *f, Matrix *g, Matrix **res)

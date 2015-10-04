@@ -36,7 +36,7 @@ void compose(Matrix *g, Matrix *f, Matrix **gf);
 int lift_diag(Matrix *f, Matrix *d, Matrix **res);
 
 void abelian_init(AbelianGroup *x, int tor_rank, int free_rank);
-void abelian_clear(AbelianGroup x);
+void abelian_clear(AbelianGroup *x);
 
 //int lift(int p, Matrix *f, Matrix *g, Matrix **res);
 

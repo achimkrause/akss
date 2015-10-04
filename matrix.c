@@ -26,8 +26,16 @@ void matrix_clear(Matrix *mat) {
     mpq_clear(*entry);
     entry++;
   }
+  free(mat->entries);
   free(mat);
 }
+
+Matrix* matrix_copy(const Matrix *mat) {
+  Matrix* new_mat = matrix_init(mat->height, mat->width);
+  set_submatrix(0,0,0,0,mat->height, mat->width, mat, new_mat);
+  return new_mat;
+}
+
 
 ////////matrix_arr //////////////////////////////////////////////////////
 
@@ -234,7 +242,11 @@ void mul_base(MatrixArray to_X, MatrixArray from_X, int i,
 
 ///////////matrix construction functions////////////////////////////////////////////////////////////////////
 
-void set_unit(int i0, int j0, int i_range, int j_range, Matrix *mat) {
+void set_unit(Matrix *mat) {
+  set_unit_range(0, 0, mat->height, mat->width, mat);
+}
+
+void set_unit_range(int i0, int j0, int i_range, int j_range, Matrix *mat) {
   mpq_t *entry_mat = mat->entries + i0 * mat->width + j0;
   for (int i = 0; i < i_range; i++) {
     for (int j = 0; j < j_range; j++) {
@@ -250,7 +262,7 @@ void set_unit(int i0, int j0, int i_range, int j_range, Matrix *mat) {
 }
 
 void set_submatrix(int i0_source, int j0_source, int i0_target, int j0_target,
-    int i_range, int j_range, Matrix *source, Matrix *target) {
+    int i_range, int j_range, const Matrix *source, Matrix *target) {
   mpq_t *entry_source = source->entries + i0_source * source->width + j0_source;
   mpq_t *entry_target = target->entries + i0_target * target->width + j0_target;
   for (int i = 0; i < i_range; i++) {

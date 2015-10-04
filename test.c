@@ -57,6 +57,7 @@ void pprint_abelian(int p, AbelianGroup arr) {
     printf("Z");
   }
   printf("\n");
+  mpz_clear(pow);
 }
 
 void pprint_matrix(Matrix *mat) {
@@ -93,7 +94,7 @@ void test_kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
   MatrixArray from_X;
   matrix_arr_init(&from_X, 1);
   (*(from_X.entries)) = matrix_init(f->width, f->width);
-  set_unit(0, 0, f->width, f->width, *from_X.entries);
+  set_unit_range(0, 0, f->width, f->width, *from_X.entries);
 
   MatrixArray to_X;
   if (g != NULL) {
@@ -123,7 +124,7 @@ void test_kernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
   }
   matrix_arr_clear(from_X);
   free(to_X.entries);
-  abelian_clear(k);
+  abelian_clear(&k);
   matrix_arr_clear(from_K);
   matrix_arr_clear(to_K);
 }
@@ -139,7 +140,7 @@ void test_cokernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
   MatrixArray to_Y;
   matrix_arr_init(&to_Y, 1);
   *(to_Y.entries) = matrix_init(f->height, f->height);
-  set_unit(0, 0, f->height, f->height, *to_Y.entries);
+  set_unit_range(0, 0, f->height, f->height, *to_Y.entries);
 
   MatrixArray from_Y;
   if (g != NULL) {
@@ -169,10 +170,9 @@ void test_cokernel(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
 
   matrix_arr_clear(to_Y);
   free(from_Y.entries);
-  abelian_clear(c);
+  abelian_clear(&c);
   matrix_arr_clear(to_C);
   matrix_arr_clear(from_C);
-
 }
 
 void test_epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y) {
@@ -196,4 +196,7 @@ void test_epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y) {
   printf("the inclusion matrix is:\n");
   pprint_matrix(inc);
 
+  matrix_clear(proj);
+  matrix_clear(inc);
+  abelian_clear(&img);
 }

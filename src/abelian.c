@@ -13,8 +13,12 @@
  Similarly, if A is torsion-free, we need to compute just the kernel of A + rB -> gB, which takes only one application of smith as well.
  */
 
-void kernel(int p, const Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray to_X,
-    MatrixArray from_X, AbelianGroup *k, MatrixArray *to_K, MatrixArray *from_K) {
+//computes kernel of map f. f can't be NULL. if x or y are NULL, 
+// the corresponding groups are taken to be free of the correct rank.
+// if to_X, from_X are NULL, the corresponding lists are taken to be empty.
+// if k, to_K or from_K are NULL, the corresponding return value is discarded.
+void kernel(const int p, const Matrix *f, const AbelianGroup *x, const AbelianGroup *y, const MatrixArray *to_X,
+    const MatrixArray *from_X, AbelianGroup *k, MatrixArray *to_K, MatrixArray *from_K) {
 
   //first, compute for f*rel_x a lift l along rel_y. Then a map R_x -> R_y + X is given by (-l, rel_x)^t,
   //while a map R_y +X -> Y is given by (r_Y,f).
@@ -24,154 +28,150 @@ void kernel(int p, const Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray 
   //we can drop the generators corresponding to order 1, killing the corresponding columns in the map from K and the corresponding rows in the maps to K.
   //we obtain the orders of a final K, an inclusion map K->X, lifts g_lift_i.
 
-  //multiply cols of f with p^orders_x, divide rows by p^orders_y
-  Matrix *rel_free = matrix_init(y.tor_rank + f->width, x.tor_rank);  //build from -l and rel_x. ALLOCATES
-
-  int *orders_y = y.orders;
-
-  int *orders_x = x.orders;
-
-  mpq_t *entry_rel_free = rel_free->entries;
-  mpq_t *entry_f = f->entries;
   mpq_t lam_col;
   mpq_t lam_row;
-  mpq_init(lam_col);  //ALLOCATES
-  mpq_init(lam_row);  //ALLOCATES
+  mpq_init(lam_col);  
+  mpq_init(lam_row);  
   mpz_set_ui(mpq_denref(lam_col), 1);
   mpz_set_ui(mpq_denref(lam_row), 1);
 
-  for (int i = 0; i < y.tor_rank; i++) {
-
-    mpz_ui_pow_ui(mpq_numref(lam_row), p, *orders_y);
-    for (int j = 0; j < x.tor_rank; j++) {
-
-      mpz_ui_pow_ui(mpq_numref(lam_col), p, *orders_x);  //could replace this by a second loop, traversing column-wise.(depends on how expensive the powering is).
-      mpq_mul(*entry_rel_free, *entry_f, lam_col);
-      mpq_div(*entry_rel_free, *entry_rel_free, lam_row);
-      mpq_neg(*entry_rel_free, *entry_rel_free);
-
-      entry_rel_free++;
-      entry_f++;
-      orders_x++;
-    }
-    orders_x = x.orders;
-    entry_f = entry_f - x.tor_rank + f->width;
-    orders_y++;
+  //to construct -l, we multiply the rows of f with rel_y, then divide the columns by rel_x.
+  int tor_rank_y;
+  if(y != NULL) {
+    tor_rank_y = 0;
+  }
+  else {
+    tor_rank_y = y->tor_rank;
   }
 
-  set_diag_p_powers(p, y.tor_rank, 0, x.tor_rank, x.orders, rel_free);
+  int tor_rank_x;
+  if(x != NULL) {
+    tor_rank_x = 0;
+  }
+  else {
+    tor_rank_x = x->tor_rank;
+  }
+  Matrix *rel_free = matrix_alloc();
+  matrix_init(rel_free, tor_rank_y + f->width, tor_rank_x); //build from -l and rel_x.
 
-  Matrix *f_free = matrix_init(f->height, y.tor_rank + f->width);  //build f_free from rel_x, f. ALLOCATES
 
-  set_diag_p_powers(p, 0, 0, y.tor_rank, y.orders, f_free);
-  set_submatrix(0, 0, 0, y.tor_rank, f->height, f->width, f, f_free);
+  for (int i = 0; i < tor_rank_y; i++) {
+
+    mpz_ui_pow_ui(mpq_numref(lam_row), p, y->orders[i]);
+    for (int j = 0; j < tor_rank_x; j++) {
+
+      mpz_ui_pow_ui(mpq_numref(lam_col), p, x->orders[j]);  //could replace this by a second loop, traversing column-wise.(depends on how expensive the powering is).
+      mpq_mul(rel_free->entries[i*rel_free->width + j], 
+               f->entries[i*f->width+j], lam_col);
+      mpq_div(rel_free->entries[i*rel_free->width+j], 
+               rel_free->entries[i*rel_free->width+j], lam_row);
+      mpq_neg(rel_free->entries[i*rel_free->width+j], 
+               rel_free->entries[i*rel_free->width+j]);
+
+    }
+  }
+  //set the second block of rel_free to rel_x
+  if(x!= NULL) { 
+    set_diag_p_powers(p, tor_rank_y, 0, tor_rank_x, x->orders, rel_free);
+  }
+
+  Matrix *f_free = matrix_alloc();
+  matrix_init(f_free, f->height, tor_rank_y + f->width);  //build f_free from rel_y, f.
+
+  if(y!=NULL) {
+    set_diag_p_powers(p, 0, 0, y->tor_rank, y->orders, f_free);
+  }
+  set_submatrix(0, 0, 0, tor_rank_y, f->height, f->width, f, f_free);
 
   //next, compute the l_i by lifting f*g_i over rel_y.
 
-  Matrix *f_to_X_i;
+  Matrix *f_to_X_i = matrix_alloc();
+  MatrixArray *to_Ry_X = matrix_arr_alloc();
+  matrix_arr_init(to_Ry_X, to_X->length + 1);  //reserve additional entry for rel_free!
 
-  MatrixArray to_Ry_X;
-  matrix_arr_init(&to_Ry_X, to_X.length + 1);  //reserve additional entry for rel_free!
+  for (int i = 0; i < to_X->length; i++) {
+    compose(f, to_X->entries[i], f_to_X_i);
+    to_Ry_X->entries[i]=matrix_alloc();
+    matrix_init(to_Ry_X->entries[i],tor_rank_y + f->width, to_X->entries[i]->width);
 
-  Matrix **to_X_i = to_X.entries;
-  Matrix **to_Ry_X_i = to_Ry_X.entries;
+    //this loop lifts f*to_X_i over rel_y to create l_i, 
+    //and installs that as first block in to_Ry_X.
+    for (int row = 0; row < tor_rank_y; row++) {
+      mpz_ui_pow_ui(mpq_numref(lam_row), p, y->orders[row]);
 
-  for (int i = 0; i < to_X.length; i++) {
-    compose(f, (*to_X_i), &f_to_X_i);
-
-    *to_Ry_X_i = matrix_init(y.tor_rank + f->width, (*to_X_i)->width);
-
-    mpq_t *entry_f_to_X = f_to_X_i->entries;
-    mpq_t *entry_to_Ry_X = (*to_Ry_X_i)->entries;
-
-    orders_y = y.orders;
-
-    for (int row = 0; row < y.tor_rank; row++) {
-      mpz_ui_pow_ui(mpq_numref(lam_row), p, *orders_y);
-
-      for (int col = 0; col < (*to_X_i)->width; col++) {
-        mpq_div(*entry_to_Ry_X, *entry_f_to_X, lam_row);
-        mpq_neg(*entry_to_Ry_X, *entry_to_Ry_X);
-        entry_to_Ry_X++;
-        entry_f_to_X++;
+      for (int col = 0; col < to_X->entries[i]->width; col++) {
+        mpq_div(to_Ry_X->entries[i]->entries[row*to_Ry_X->entries[i]->width + col], 
+                 f_to_X_i->entries[row*f_to_X_i->width + col], lam_row);
+        mpq_neg(to_Ry_X->entries[i]->entries[row*to_Ry_X->entries[i]->width + col],
+                 to_Ry_X->entries[i]->entries[row*to_Ry_X->entries[i]->width + col]);
       }
-      orders_y++;
     }
-    set_submatrix(0, 0, y.tor_rank, 0, (*to_X_i)->height, (*to_X_i)->width,
-        (*to_X_i), (*to_Ry_X_i));
 
-    matrix_clear(f_to_X_i);
-    to_X_i++;
-    to_Ry_X_i++;
+    //set second block of to_Ry_X to to_X.
+    set_submatrix(0, 0, tor_rank_y, 0, to_X->entries[i]->height, to_X->entries[i]->width,
+        to_X->entries[i], to_Ry_X->entries[i]);
+
+    //we have to clear f_to_X_i by hand since matrix_clear frees the pointer itself, and we want to reuse it.
+    for (int d = 0; d < f_to_X_i->height * f_to_X_i->width; d++) {
+      mpq_clear(f_to_X_i->entries[d]);
+    }
+    free(f_to_X_i->entries);
   }
-  *to_Ry_X_i = rel_free;
+  free(f_to_X_i);
 
-  MatrixArray from_Ry_X;
-  matrix_arr_init(&from_Ry_X, from_X.length);
-  Matrix **from_Ry_X_i = from_Ry_X.entries;
-  Matrix **from_X_i = from_X.entries;
-  for (int i = 0; i < from_X.length; i++) {
-    *from_Ry_X_i = matrix_init((*from_X_i)->height, y.tor_rank + f->width);
-    set_submatrix(0, 0, 0, y.tor_rank, (*from_X_i)->height, f->width, *from_X_i,
-        *from_Ry_X_i);
+  to_Ry_X->entries[to_Ry_X->length - 1] = rel_free;
+
+  MatrixArray *from_Ry_X = matrix_arr_alloc();
+  matrix_arr_init(from_Ry_X, from_X->length);
+
+  for (int i = 0; i < from_X->length; i++) {
+    from_Ry_X->entries[i]=matrix_alloc();
+    matrix_init(from_Ry_X->entries[i],from_X->entries[i]->height, tor_rank_y + f->width);
+    set_submatrix(0, 0, 0, tor_rank_y, from_X->entries[i]->height, f->width, from_X->entries[i],
+        from_Ry_X->entries[i]);
   }
-
-  MatrixArray null_arr;
-  null_arr.length = 0;
-  null_arr.entries = NULL;
 
   //now, smith f_free:
-  smith(p, f_free, to_Ry_X, from_Ry_X, null_arr, null_arr);
+  smith(p, f_free, to_Ry_X, from_Ry_X, NULL, NULL);
 
-  to_Ry_X.length = to_Ry_X.length - 1;  //we don't need rel_free in this list anymore since next call to smith will be on rel_free.
+  //we don't need rel_free in this list anymore since next call to smith will be on rel_free. MILDLY HACKY.
+  to_Ry_X->length = to_Ry_X->length - 1;  
 
   int n = 0;
-  mpq_t *entry_f_free = f_free->entries;
   mpq_t zero;
   mpq_init(zero);
   mpq_set_ui(zero, 0, 1);
 
   while (n < f_free->width && n < f_free->height
-      && !mpq_equal(*entry_f_free, zero)) {
+      && !mpq_equal(f_free->entries[n*(f_free->width+1)], zero)) {
     n++;
-    entry_f_free = entry_f_free + f_free->width + 1;
   }
 
-  Matrix *rel_K = matrix_init(rel_free->height - n, rel_free->width);
+  Matrix *rel_K = matrix_alloc();
+  matrix_init(rel_K, rel_free->height - n, rel_free->width);
   set_submatrix(n, 0, 0, 0, rel_K->height, rel_K->width, rel_free, rel_K);
 
-  MatrixArray to_free_K;
-  matrix_arr_init(&to_free_K, to_Ry_X.length);
-  to_Ry_X_i = to_Ry_X.entries;
-  Matrix **to_free_K_i = to_free_K.entries;
+  MatrixArray *to_free_K = matrix_arr_alloc();
+  matrix_arr_init(to_free_K, to_Ry_X->length);
 
-  for (int i = 0; i < to_Ry_X.length; i++) {
-    *to_free_K_i = matrix_init(rel_free->height - n, (*to_Ry_X_i)->width);
-    set_submatrix(n, 0, 0, 0, (*to_free_K_i)->height, (*to_free_K_i)->width,
-        (*to_Ry_X_i), (*to_free_K_i));
-    to_Ry_X_i++;
-    to_free_K_i++;
+  for (int i = 0; i < to_Ry_X->length; i++) {
+    to_free_K->entries[i] = matrix_alloc();
+    matrix_init(to_free_K->entries[i], rel_free->height - n, to_Ry_X->entries[i]->width);
+    set_submatrix(n, 0, 0, 0, to_free_K->entries[i]->height, to_free_K->entries[i]->width,
+        to_Ry_X->entries[i], to_free_K->entries[i]);
   }
 
-  MatrixArray from_free_K;
-  matrix_arr_init(&from_free_K, from_Ry_X.length);
+  MatrixArray *from_free_K = matrix_arr_alloc();
+  matrix_arr_init(from_free_K, from_Ry_X->length);
 
-  from_Ry_X_i = from_Ry_X.entries;
-  Matrix **from_free_K_i = from_free_K.entries;
-
-  for (int i = 0; i < from_Ry_X.length; i++) {
-    *from_free_K_i = matrix_init((*from_Ry_X_i)->height, rel_free->height - n);
-    set_submatrix(0, n, 0, 0, (*from_free_K_i)->height, (*from_free_K_i)->width,
-        (*from_Ry_X_i), (*from_free_K_i));
-    from_Ry_X_i++;
-    from_free_K_i++;
+  for (int i = 0; i < from_Ry_X->length; i++) {
+    from_free_K->entries[i] = matrix_alloc();
+    matrix_init(from_free_K->entries[i],from_Ry_X->entries[i]->height, rel_free->height - n);
+    set_submatrix(0, n, 0, 0, from_free_K->entries[i]->height, from_free_K->entries[i]->width,
+        from_Ry_X->entries[i], from_free_K->entries[i]);
   }
 
-  AbelianGroup free_K;
-  abelian_init(&free_K, 0, rel_free->height - n);
-
-  cokernel(p, rel_K, free_K, to_free_K, from_free_K, k, to_K, from_K);
-  abelian_clear(&free_K);
+  cokernel(p, rel_K, NULL, to_free_K, from_free_K, k, to_K, from_K);
 
   matrix_clear(rel_free);
   matrix_clear(rel_K);
@@ -186,134 +186,127 @@ void kernel(int p, const Matrix *f, AbelianGroup x, AbelianGroup y, MatrixArray 
   matrix_arr_clear(to_Ry_X);
 }
 
-void cokernel(int p, const Matrix *f, AbelianGroup y, MatrixArray to_Y,
-    MatrixArray from_Y, AbelianGroup *c, MatrixArray *to_C, MatrixArray *from_C) {
+void cokernel(const int p, const Matrix *f, const AbelianGroup *y, const MatrixArray *to_Y_0,
+    const MatrixArray *from_Y_0, AbelianGroup *c, MatrixArray *to_C, MatrixArray *from_C) {
 
-  Matrix *f_rel_y = matrix_init(f->height, f->width + y.tor_rank);
+  Matrix *f_rel_y = matrix_alloc();
+
+  int tor_rank_y =0;
+  if(y!=NULL) {
+    tor_rank_y=y->tor_rank;
+  }
+  matrix_init(f_rel_y, f->height, f->width + tor_rank_y); //build from f and rel_y.
 
   set_submatrix(0, 0, 0, 0, f->height, f->width, f, f_rel_y);
-  set_diag_p_powers(p, 0, f->width, y.tor_rank, y.orders, f_rel_y);
+  if(y!=NULL) {
+    set_diag_p_powers(p, 0, f->width, tor_rank_y, y->orders, f_rel_y);
+  }
+  //copy to_Y_0, from_Y_0.
+
+  MatrixArray *to_Y = matrix_arr_copy(to_Y_0);
+  MatrixArray *from_Y = matrix_arr_copy(from_Y_0);
 
   //now smith
-  MatrixArray null_arr;
-  null_arr.length = 0;
-  null_arr.entries = NULL;
 
-  smith(p, f_rel_y, null_arr, null_arr, to_Y, from_Y);
+  smith(p, f_rel_y, NULL, NULL, to_Y, from_Y);
 
   mpq_t one;
   mpq_init(one);
   mpq_set_ui(one, 1, 1);
 
-  mpq_t *entry_diag = f_rel_y->entries;
   int n = 0;
 
   while (n < f_rel_y->height && n < f_rel_y->width
-      && mpq_equal(*entry_diag, one)) {
+      && mpq_equal(f_rel_y->entries[n*(f_rel_y->width +1)], one)) {
     n++;
-    entry_diag = entry_diag + f_rel_y->width + 1;
   }
+  mpq_clear(one);
 
   //n is now the first non-1 entry.
   //so the g_factor guys come from the columns of the g beginning with n,
   //and the projection is given by the rows beginning with n.
   if (c != NULL) {
-
     mpq_t zero;
     mpq_init(zero);
     mpq_set_ui(zero, 0, 1);
 
     int tor_rank_c = 0;
     while (tor_rank_c < f_rel_y->height - n && tor_rank_c < f_rel_y->width - n
-        && !mpq_equal(*entry_diag, zero)) {
+        && !mpq_equal(f_rel_y->entries[n*(f_rel_y->width +1)], zero)) {
       tor_rank_c++;
-      entry_diag = entry_diag + f_rel_y->width + 1;
     }
 
     abelian_init(c, tor_rank_c, f_rel_y->height - n - tor_rank_c);
 
-    int *orders_entry = c->orders;
-
-    entry_diag = f_rel_y->entries + n + n * (f_rel_y->width);
     for (int i = 0; i < c->tor_rank; i++) {
 
-      *orders_entry = valuation(p, *entry_diag);
-
-      orders_entry++;
-      entry_diag = entry_diag + f_rel_y->width + 1;
+      c->orders[i] = valuation(p, f_rel_y->entries[(n+i)*(f_rel_y->width + 1)]);
     }
 
     mpq_clear(zero);
   }
 
   if (to_C != NULL) {
-    matrix_arr_init(to_C, to_Y.length);
-
-    Matrix **entry_to_C = to_C->entries;
-    Matrix **entry_to_Y = to_Y.entries;
+    matrix_arr_init(to_C, to_Y->length);
 
     for (int i = 0; i < to_C->length; i++) {
-      *entry_to_C = matrix_init((*entry_to_Y)->height - n,
-          (*entry_to_Y)->width);
-      set_submatrix(n, 0, 0, 0, (*entry_to_C)->height, (*entry_to_C)->width,
-          (*entry_to_Y), (*entry_to_C));
-      entry_to_C++;
+      to_C->entries[i] = matrix_alloc();
+      matrix_init(to_C->entries[i],to_Y->entries[i]->height - n,
+          to_Y->entries[i]->width);
+      set_submatrix(n, 0, 0, 0, to_C->entries[i]->height, to_C->entries[i]->width,
+          to_Y->entries[i], to_C->entries[i]);
     }
   }
 
   if (from_C != NULL) {
-    matrix_arr_init(from_C, from_Y.length);
-
-    Matrix **entry_from_C = from_C->entries;
-    Matrix **entry_from_Y = from_Y.entries;
+    matrix_arr_init(from_C, from_Y->length);
 
     for (int i = 0; i < from_C->length; i++) {
-      *entry_from_C = matrix_init((*entry_from_Y)->height,
-          (*entry_from_Y)->width - n);
-      set_submatrix(0, n, 0, 0, (*entry_from_C)->height, (*entry_from_C)->width,
-          (*entry_from_Y), (*entry_from_C));
-      entry_from_C++;
+      from_C->entries[i] = matrix_alloc();
+      matrix_init(from_C->entries[i],from_Y->entries[i]->height,
+          from_Y->entries[i]->width - n);
+      set_submatrix(0, n, 0, 0, from_C->entries[i]->height, from_C->entries[i]->width,
+          from_Y->entries[i], from_C->entries[i]);
     }
   }
 
   matrix_clear(f_rel_y);
-  mpq_clear(one);
+  matrix_arr_clear(from_Y);
+  matrix_arr_clear(to_Y);
 }
 
-void epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
-    AbelianGroup *img, Matrix **proj, Matrix **inc) {
+void epi_mono(const int p, const Matrix *f, const AbelianGroup *x, const AbelianGroup *y,
+    AbelianGroup *img, Matrix *proj, Matrix *inc) {
   //first, compute kernel of f, tracking the inclusion K -> X.
   //then, compute the cokernel of K -> X, tracking the projection X -> C and a factorization of f over it.
 
-  MatrixArray from_X;
-  matrix_arr_init(&from_X, 1);
-  from_X.entries[0] = matrix_init(f->width, f->width);
-  set_unit(from_X.entries[0]);
+  MatrixArray *from_X =matrix_arr_alloc();
+  matrix_arr_init(from_X, 1);
+  from_X->entries[0]=matrix_alloc();
+  matrix_init(from_X->entries[0],f->width, f->width);
+  set_unit(from_X->entries[0]);
 
-  MatrixArray to_X;
-  matrix_arr_init(&to_X, 0);
+  MatrixArray *from_K = matrix_arr_alloc();
 
-  MatrixArray from_K;
+  kernel(p, f, x, y, NULL, from_X, NULL, NULL, from_K); 
 
-  kernel(p, f, x, y, to_X, from_X, NULL, NULL, &from_K);  //check that this doesn't change f (I think it doesn't).
+  MatrixArray *to_X_2 = matrix_arr_alloc();
+  matrix_arr_init(to_X_2, 1);
+  to_X_2->entries[0] = matrix_alloc();
+  matrix_init(to_X_2->entries[0], f->width, f->width);
+  set_unit(to_X_2->entries[0]);
 
-  MatrixArray to_X_2;
-  matrix_arr_init(&to_X_2, 1);
-  to_X_2.entries[0] = matrix_init(f->width, f->width);
-  set_unit(to_X_2.entries[0]);
+  MatrixArray *from_X_2 = matrix_arr_alloc();
+  matrix_arr_init(from_X_2, 1);
+  from_X_2->entries[0] = matrix_copy(f);
 
-  MatrixArray from_X_2;
-  matrix_arr_init(&from_X_2, 1);
-  from_X_2.entries[0] = f;
+  MatrixArray *to_C = matrix_arr_alloc();
+  MatrixArray *from_C = matrix_arr_alloc();
+  cokernel(p, from_K->entries[0], x, to_X_2, from_X_2, img, to_C, from_C);
 
-  MatrixArray to_C;
-  MatrixArray from_C;
-  cokernel(p, from_K.entries[0], x, to_X_2, from_X_2, img, &to_C, &from_C);
+  matrix_copy_to(to_C->entries[0],proj);
+  matrix_copy_to(from_C->entries[0],inc);
 
-  *proj = matrix_copy(to_C.entries[0]);
-  *inc = matrix_copy(from_C.entries[0]);
-
-  matrix_arr_clear(to_X);
   matrix_arr_clear(to_X_2);
   matrix_arr_clear(from_X);
   matrix_arr_clear(from_X_2);
@@ -322,7 +315,7 @@ void epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y,
   matrix_arr_clear(from_C);
 }
 
-void compose_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
+/*void compose_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
   int m = 0;
   int *exps = exponents;
   while (*exps != 0 && m < f->width) {
@@ -352,9 +345,10 @@ void compose_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
 
   mpq_clear(power);
 
-}
+}*/
+  /*
 void lift_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
-  //*exponents is supposed to be the normalized orders of a Z_(p) module, i.e.:
+  //    *exponents is supposed to be the normalized orders of a Z_(p) module, i.e.:
   // -no p^0 appear
   // -0 codifies actual zeroes. Those are supposed to be grouped in the end
   //The lift is computed against the nxm matrix where n is the full rank of f's target (f->height), m is the number of nonzero entries in *exponents
@@ -372,10 +366,10 @@ void lift_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
   mpq_t *entry_f = f->entries;
   exps = exponents;
 
-  /*mpq_t zero;//DEBUG ONLY
+  / mpq_t zero;//DEBUG ONLY
    mpq_init(zero);//DEBUG ONLY
    mpq_set_ui(zero, 0, 1);//DEBUG ONLY
-   */
+   /
 
   mpq_t power;
   mpq_init(power);
@@ -405,16 +399,16 @@ void lift_diag_p_power(int p, Matrix *f, int *exponents, Matrix **res) {
     exps++;
   }
 
-  /*for(int i=m; i<f->height; i++)//DEBUG ONLY
+  / for(int i=m; i<f->height; i++)//DEBUG ONLY
    {
    assert(mpq_equal(*entry_f,zero));
-   }*/
+   }/
 
   mpq_clear(power);
   //mpq_clear(zero);//DEBUG ONLY
-}
+}*/
 
-
+/*
 int lift_diag(Matrix *f, Matrix *d, Matrix **res) {
   Matrix *lift = matrix_init(d->width, f->width);
   mpq_t *entry_d = d->entries;
@@ -449,9 +443,9 @@ int lift_diag(Matrix *f, Matrix *d, Matrix **res) {
 
   (*res) = lift;
   return 1;
-}
+}*/
 
-void abelian_init(AbelianGroup *x, int tor_rank, int free_rank) {
+void abelian_init(AbelianGroup *x, const int tor_rank, const int free_rank) {
   x->tor_rank = tor_rank;
   x->free_rank = free_rank;
   x->orders = malloc(sizeof(int) * tor_rank);

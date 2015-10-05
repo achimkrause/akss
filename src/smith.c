@@ -33,105 +33,101 @@ int valuation(const int p, const mpq_t lam) {
   }
 }
 
-/////////////////////////////////////////////////////smith algorithm////////////////////////////////////////////////////
-void smith(int p, Matrix *mat, MatrixArray to_X,
-    MatrixArray from_X_0, MatrixArray to_Y_0,
-    MatrixArray from_Y) {
+
+void smith(const int p, Matrix *mat, MatrixArray *to_X,
+    MatrixArray *from_X_0, MatrixArray *to_Y_0,
+    MatrixArray *from_Y) {
   //mat represents a map X -> Y. to_X, from_X, to_Y, from_Y are representatives for maps to/from X/Y.
   //smith brings mat into smith normal form by applying base changes to X and Y and transforming to_X and to_Y accordingly.
-  mpq_t *entry;
   mpq_t min;
   mpq_init(min);
   mpq_t lam;
   mpq_init(lam);
 
-  MatrixArray from_X;
-  MatrixArray to_Y;
+  MatrixArray *from_X = matrix_arr_alloc();
+  MatrixArray *to_Y = matrix_arr_alloc();
 
-  from_X.length = from_X_0.length + 1;
-  to_Y.length = to_Y_0.length + 1;
+  if(from_X_0!=NULL) {
 
-  from_X.entries = (Matrix**) malloc(
-      sizeof(Matrix*) * from_X.length);
-  to_Y.entries = (Matrix**) malloc(sizeof(Matrix*) * to_Y.length);
+    matrix_arr_init(from_X, from_X_0->length+1);
 
-  Matrix **entry_from_X = from_X.entries;
-  Matrix **entry_from_X_0 = from_X_0.entries;
-
-  for (int i = 0; i < from_X_0.length; i++) {
-    *entry_from_X = *entry_from_X_0;
-    entry_from_X++;
-    entry_from_X_0++;
+    for (int i = 0; i < from_X_0->length; i++) {
+      from_X->entries[i] = from_X_0->entries[i];
+    }  
   }
-  *entry_from_X = mat;
-
-  Matrix **entry_to_Y = to_Y.entries;
-  Matrix **entry_to_Y_0 = to_Y_0.entries;
-
-  for (int i = 0; i < to_Y_0.length; i++) {
-    *entry_to_Y = *entry_to_Y_0;
-    entry_to_Y++;
-    entry_to_Y_0++;
+  else {
+    matrix_arr_init(from_X,1);
   }
-  *entry_to_Y = mat;
+  
+  if(to_Y_0!=NULL) {
+    matrix_arr_init(to_Y, to_Y_0->length+1);
+    for (int i = 0; i < to_Y_0->length; i++) {
+      to_Y->entries[i] = to_Y_0->entries[i];
+    }
+  }
+  else {
+    matrix_arr_init(to_Y,1);
+  }
+
+  from_X->entries[from_X->length -1] = mat;
+  to_Y->entries[to_Y->length-1] = mat;
 
   int block = 0;
 
+  mpq_t zero;
+  mpq_init(zero);
+  mpq_set_ui(zero,0,1);
+
   while (block < mat->width && block < mat->height) {
-    entry = mat->entries + block + block * (mat->width);
     //find smallest in block:
     int i_min = -1;
     int j_min = -1;
     int min_val = 0;
     for (int i = block; i < mat->height; i++) {
       for (int j = block; j < mat->width; j++) {
-        if (mpq_sgn(*entry) != 0) {
+        if (!mpq_equal(mat->entries[i*mat->width+j],zero)) {
           if (i_min == -1) {
             i_min = i;
             j_min = j;
-            mpq_set(min, *entry);
+            mpq_set(min, mat->entries[i*mat->width+j]);
             min_val = valuation(p, min);
           } else {
-            if (valuation(p, *entry) < min_val) {
+            if (valuation(p, mat->entries[i*mat->width+j]) < min_val) {
               i_min = i;
               j_min = j;
-              mpq_set(min, *entry);
+              mpq_set(min, mat->entries[i*mat->width+j]);
               min_val = valuation(p, min);
             }
           }
-
         }
-        entry++;
       }
-      entry += block;
     }
     if (i_min == -1) {
       mpq_clear(min);
       mpq_clear(lam);
-      free(from_X.entries);
-      free(to_Y.entries);
+      //Caller still owns mat and the entries of from_X_0, to_Y_0, so we can't clear them.
+      free(from_X->entries);
+      free(from_X);
+      free(to_Y->entries);
+      free(to_Y);
       return;
     }
 
-    entry = mat->entries + j_min + block * (mat->width);
     for (int i = block; i < mat->height; i++) {
       if (i != i_min) {
-        mpq_div(lam, *entry, min);
+        mpq_div(lam, mat->entries[i*mat->width+j_min], min);
         add_base(to_Y, from_Y, i, i_min, lam);
         //has the effect of subtracting lam times the i_min-row from the i-row.
       }
-      entry += mat->width;
     }
 
-    entry = mat->entries + i_min * (mat->width) + block;
     for (int j = block; j < mat->width; j++) {
       if (j != j_min) {
-        mpq_div(lam, *entry, min);
+        mpq_div(lam, mat->entries[i_min*mat->width + j], min);
         mpq_neg(lam, lam);
         add_base(to_X, from_X, j_min, j, lam);
         //has the effect of adding lam times the j_min col to the j-col.
       }
-      entry++;
     }
     swap_base(to_Y, from_Y, i_min, block);
     swap_base(to_X, from_X, j_min, block);
@@ -145,8 +141,10 @@ void smith(int p, Matrix *mat, MatrixArray to_X,
   }
   mpq_clear(min);
   mpq_clear(lam);
-  free(from_X.entries);
-  free(to_Y.entries);
-
+  //Caller still owns mat and the entries of from_X_0, to_Y_0, so we can't clear them.
+  free(from_X->entries); 
+  free(from_X);
+  free(to_Y->entries);
+  free(to_Y);
 }
 

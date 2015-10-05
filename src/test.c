@@ -1,5 +1,106 @@
 #include "test.h"
 
+/*int* parse_array(const char *input) {
+  char *input_cpy = malloc(strlen(input)+1);
+  strcpy(input_cpy, input);
+  int length =1;
+  char *in_ptr = input_cpy;
+  char *s;
+  
+  while(*in_ptr != '\0') {
+
+    if(*in_ptr == ',') {
+      length++;
+    }
+    in_ptr++;
+  }
+  int* result = malloc(sizeof(int)*length);
+  s=strtok(input_cpy, "{}, ");
+  for(int i=0; i<length; i++) {
+    sscanf(s,"%u",result+i);
+    s=strtok(NULL, "{}, ");
+  }
+  return result;
+
+}
+
+int parse_matrix(const char *input, Matrix *mat) {
+  char *input_cpy = malloc(strlen(input)+1);
+  strcpy(input_cpy, input);
+  int height =1;
+  int width =1;
+  char *in_ptr = input_cpy;
+  char *s;
+
+  while(*in_ptr != '}') {
+
+    if(*in_ptr == ',') {
+      width++;
+    }
+    in_ptr++;
+  }
+  while(*in_ptr != '\0') {
+    if(*in_ptr == '{') {
+      height++;
+    }
+    in_ptr++;
+  }
+  matrix_init(mat, height, width);
+  s=strtok(input_cpy, "{}, ");
+
+  for(int i=0; i<height*width; i++) {
+    mpq_set_str(mat->entries[i], s, 10);
+
+    s=strtok(NULL, "{}, ");
+  }
+  free(input_cpy);
+  return 1;
+}*/
+
+
+
+
+
+
+
+void pprint_matrix(Matrix *mat) {
+  mpq_t *entry = mat->entries;
+  for (int i = 0; i < mat->height; i++) {
+    for (int j = 0; j < mat->width; j++) {
+      gmp_printf("%Qd ", *entry);
+      entry++;
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*void test_smith()
  {
  Matrix *mat;
@@ -33,7 +134,7 @@
  pprint_mat(b2);
 
  }*/
-
+/*
 void pprint_abelian(int p, AbelianGroup arr) {
   int *entry = arr.orders;
   bool rep = false;
@@ -60,17 +161,6 @@ void pprint_abelian(int p, AbelianGroup arr) {
   mpz_clear(pow);
 }
 
-void pprint_matrix(Matrix *mat) {
-  mpq_t *entry = mat->entries;
-  for (int i = 0; i < mat->height; i++) {
-    for (int j = 0; j < mat->width; j++) {
-      gmp_printf("%Qd ", *entry);
-      entry++;
-    }
-    printf("\n");
-  }
-  printf("\n");
-}
 
 void fill_matrix(int *vals, Matrix *mat) {
   int *entry_vals = vals;
@@ -200,3 +290,4 @@ void test_epi_mono(int p, Matrix *f, AbelianGroup x, AbelianGroup y) {
   matrix_clear(inc);
   abelian_clear(&img);
 }
+*/

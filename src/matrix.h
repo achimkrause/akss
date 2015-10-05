@@ -20,17 +20,23 @@ typedef struct {
 
 ///////////matrix: init and clear /////////////////////////////////////////////////////////////
 
-Matrix* matrix_init(int height, int width);
+Matrix* matrix_alloc();
+void matrix_init(Matrix *mat, const int height, const int width);
 void matrix_clear(Matrix *mat);
 
 // Initializes a new matrix and copies the entries from mat over.
 // Ownership: Caller owns the returned pointer.
 Matrix* matrix_copy(const Matrix *mat);
 
+void matrix_copy_to(const Matrix *source, Matrix *target);
+
 ////////matrix_arr//////////////////////////////////////////////////////
 
-void matrix_arr_init(MatrixArray *arr, int length);
-void matrix_arr_clear(MatrixArray arr);
+void matrix_arr_init(MatrixArray *arr, const int length);
+
+MatrixArray* matrix_arr_copy(const MatrixArray *arr);
+MatrixArray* matrix_arr_alloc();
+void matrix_arr_clear(MatrixArray *arr);
 
 
 ////////elementary manipulations//////////////////////////////////////////////////////////
@@ -48,10 +54,10 @@ void div_col(Matrix *mat, const int j, const mpq_t lam);
 
 //////////basis manipulation functions/////////////////////////
 
-void add_base(MatrixArray to_X, MatrixArray from_X, int i1, int i2,
+void add_base(MatrixArray *to_X, MatrixArray *from_X, int i1, int i2,
     mpq_t lam);
-void swap_base(MatrixArray to_X, MatrixArray from_X, int i1, int i2);
-void mul_base(MatrixArray to_X, MatrixArray from_X, int i,
+void swap_base(MatrixArray *to_X, MatrixArray *from_X, int i1, int i2);
+void mul_base(MatrixArray *to_X, MatrixArray *from_X, int i,
     mpq_t lam);
 
 ///////////matrix construction functions////////////////////////////////////////////////////////////////////
@@ -63,7 +69,7 @@ void set_diag_p_powers(int p, int i0_target, int j0_target, int range,
     int *source, Matrix *target);
 
 ////////////////////////////////////////////////////////////////////////////////////
-void compose(const Matrix *g, const Matrix *f, Matrix **gf);
+void compose(const Matrix *g, const Matrix *f, Matrix *gf);
 
 
 #endif

@@ -445,15 +445,27 @@ int lift_diag(Matrix *f, Matrix *d, Matrix **res) {
   return 1;
 }*/
 
+AbelianGroup* abelian_alloc(){
+  return malloc(sizeof(AbelianGroup));
+}
+
+
 void abelian_init(AbelianGroup *x, const int tor_rank, const int free_rank) {
   x->tor_rank = tor_rank;
   x->free_rank = free_rank;
   x->orders = malloc(sizeof(int) * tor_rank);
 }
 
-void abelian_clear(AbelianGroup *x) {
+
+void abelian_clear_entries(AbelianGroup *x) {
   free(x->orders);
 }
+
+void abelian_clear(AbelianGroup *x) {
+  free(x->orders);
+  free(x);
+}
+
 /*
  int lift(int p, Matrix *f, Matrix *g, Matrix **res)
  {

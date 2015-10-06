@@ -20,7 +20,7 @@ SRCDIR = src
 OBJDIR = bin
 
 # define the C source files
-SRCS = main.c abelian.c matrix.c test.c smith.c
+SRCS = main.c abelian.c matrix.c test.c smith.c spectral.c
 
 # define the C object files 
 #

@@ -14,11 +14,15 @@ void matrix_init(Matrix *mat, const int height, const int width) {
   }
 }
 
-void matrix_clear(Matrix *mat) {
+void matrix_clear_entries(Matrix *mat) {
   for (int i = 0; i < mat->height * mat->width; i++) {
     mpq_clear(mat->entries[i]);
   }
   free(mat->entries);
+}
+
+void matrix_clear(Matrix *mat) {
+  matrix_clear_entries(mat);
   free(mat);
 }
 
@@ -38,10 +42,10 @@ void matrix_copy_to(const Matrix *source, Matrix *target) {
 void matrix_arr_clear(MatrixArray *arr) {
   
   for (int i = 0; i < arr->length; i++) {
-    matrix_clear(arr->entries[i]);
-  }
+    matrix_clear_entries(arr->entries[i]);
   free(arr->entries);
   free(arr);
+  }
 }
 
 

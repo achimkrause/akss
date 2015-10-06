@@ -32,8 +32,9 @@ void lift_diag_p_power(int p, Matrix *f, int *exponents,
 ///////////////////////lifting, not used as of now/////////////////////////////////////////////
 //int lift_diag(Matrix *f, Matrix *d, Matrix **res);
 
-
+AbelianGroup* abelian_alloc();
 void abelian_init(AbelianGroup *x, const int tor_rank, const int free_rank);
+void abelian_clear_entries(AbelianGroup *x);
 void abelian_clear(AbelianGroup *x);
 
 //int lift(int p, Matrix *f, Matrix *g, Matrix **res);

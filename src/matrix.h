@@ -22,6 +22,7 @@ typedef struct {
 
 Matrix* matrix_alloc();
 void matrix_init(Matrix *mat, const int height, const int width);
+void matrix_clear_entries(Matrix *mat);
 void matrix_clear(Matrix *mat);
 
 // Initializes a new matrix and copies the entries from mat over.
